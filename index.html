@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vikingos Indira POS</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="images/logo.png" alt="Vikingos Indira">
+        <div>
+          <p class="eyebrow">Sistema POS</p>
+          <h1>Vikingos Indira</h1>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="Secciones">
+        <button class="nav-btn active" data-section="sale">
+          <span>Venta</span>
+          <strong>Rapida</strong>
+        </button>
+        <button class="nav-btn" data-section="admin">
+          <span>Admin</span>
+          <strong>Cuentas</strong>
+        </button>
+      </nav>
+
+      <section class="quick-sale" aria-labelledby="saleTitle">
+        <div class="section-label">
+          <span id="saleTitle">Registrar venta</span>
+          <small>Intro para guardar</small>
+        </div>
+        <form id="saleForm" autocomplete="off">
+          <label for="quantityInput">Cantidad de Vikingos</label>
+          <input id="quantityInput" inputmode="numeric" pattern="[0-9]*" placeholder="0" aria-describedby="saleHint">
+          <p id="saleHint">El numero se multiplica por el precio unitario activo.</p>
+          <button type="submit" class="primary-btn">Registrar venta</button>
+        </form>
+      </section>
+
+      <section class="price-box">
+        <span>Precio unitario</span>
+        <strong id="sidePrice">$0</strong>
+      </section>
+
+      <div class="sidebar-actions">
+        <button id="themeToggle" class="icon-btn" type="button" aria-label="Cambiar modo">
+          <span class="sun">Dia</span>
+          <span class="moon">Noche</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section id="saleSection" class="view active-view">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">Caja activa</p>
+            <h2>Venta rapida de Vikingos</h2>
+          </div>
+          <div class="status-pill" id="todayStatus">Hoy: 0 vendidos</div>
+        </header>
+
+        <div class="register-panel">
+          <div>
+            <p class="panel-kicker">Ultima venta</p>
+            <h3 id="lastSaleAmount">$0</h3>
+            <span id="lastSaleMeta">Sin registros todavia</span>
+          </div>
+          <div class="big-count">
+            <span id="previewQty">0</span>
+            <small>unidades</small>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminSection" class="view">
+        <header class="page-header admin-header">
+          <div>
+            <p class="eyebrow">Panel administrativo</p>
+            <h2>Contabilidad y Analisis</h2>
+          </div>
+          <div class="admin-tools">
+            <label class="price-editor" for="priceInput">
+              <span>Precio unitario</span>
+              <input id="priceInput" inputmode="numeric" pattern="[0-9]*">
+            </label>
+            <button id="updatePriceBtn" class="success-btn" type="button">
+              <i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i>
+              <span>Actualizar precio unitario</span>
+            </button>
+            <button id="clearHistoryBtn" class="danger-btn" type="button">Borrar historico</button>
+          </div>
+        </header>
+
+        <div class="filters-bar">
+          <div class="range-tabs" role="tablist" aria-label="Filtros por fecha">
+            <button class="range-btn active" data-range="today" type="button">Dia</button>
+            <button class="range-btn" data-range="yesterday" type="button">Ayer</button>
+            <button class="range-btn" data-range="7" type="button">7 dias</button>
+            <button class="range-btn" data-range="15" type="button">15 dias</button>
+            <button class="range-btn" data-range="month" type="button">Mes</button>
+            <button class="range-btn" data-range="year" type="button">Año</button>
+            <button class="range-btn" data-range="all" type="button">Todo</button>
+          </div>
+          <label class="search-box" for="searchInput">
+            <span>Buscar</span>
+            <input id="searchInput" placeholder="Fecha, hora, cantidad, total...">
+          </label>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <span>Vikingos vendidos</span>
+            <strong id="kpiUnits">0</strong>
+            <small id="kpiTransactions">0 registros</small>
+          </article>
+          <article class="kpi-card accent">
+            <span>Total ingresado</span>
+            <strong id="kpiRevenue">$0</strong>
+            <small id="kpiRange">Periodo actual</small>
+          </article>
+          <article class="kpi-card chart-card">
+            <span>Ventas por mes</span>
+            <div id="monthlyChart" class="monthly-chart" aria-label="Grafica de ventas por mes"></div>
+          </article>
+          <article class="kpi-card">
+            <span>Mejor venta</span>
+            <strong id="kpiBest">$0</strong>
+            <small id="kpiBestMeta">Sin datos</small>
+          </article>
+        </div>
+
+        <section class="insights-panel">
+          <div>
+            <span>Lectura inteligente</span>
+            <p id="smartInsight">Registra ventas para activar el analisis del negocio.</p>
+          </div>
+          <div class="trend-meter">
+            <span id="trendPercent">0%</span>
+            <small>actividad del periodo</small>
+          </div>
+        </section>
+
+        <section class="records-section">
+          <div class="section-heading">
+            <h3>Historial de registros</h3>
+            <span id="recordsCount">0 resultados</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha y hora</th>
+                  <th>Cantidad</th>
+                  <th>Precio unitario</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="recordsBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state">No hay registros para mostrar.</div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <button id="chatToggle" class="chat-pill" type="button" aria-label="Abrir chat administrativo">
+    <span>Chat</span>
+  </button>
+
+  <section id="chatPanel" class="chat-panel" aria-label="Chat administrativo">
+    <header>
+      <div>
+        <strong>Asistente contable</strong>
+        <span>Pregunta por ventas, totales o tendencias</span>
+      </div>
+      <button id="chatClose" type="button" aria-label="Cerrar chat">x</button>
+    </header>
+    <div id="chatMessages" class="chat-messages"></div>
+    <form id="chatForm" class="chat-form" autocomplete="off">
+      <input id="chatInput" placeholder="Ej: cuanto vendi hoy?">
+      <button type="submit">Enviar</button>
+    </form>
+  </section>
+
+  <div id="confirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <h3 id="modalTitle">Borrar historico</h3>
+      <p>Esta accion eliminara todos los registros guardados en este dispositivo. Confirma solo si ya hiciste respaldo de tus cuentas.</p>
+      <div class="modal-actions">
+        <button id="cancelClear" type="button" class="ghost-btn">Cancelar</button>
+        <button id="confirmClear" type="button" class="danger-btn">Si, borrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminLoginModal" class="modal-backdrop login-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <form id="adminLoginForm" class="modal-card login-card" autocomplete="off">
+      <div class="login-icon">
+        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+      </div>
+      <p class="eyebrow">Acceso privado</p>
+      <h3 id="loginTitle">Ingresar al panel admin</h3>
+      <label for="adminPassword">
+        <span>Contrasena</span>
+        <input id="adminPassword" type="password" inputmode="numeric" placeholder="Ingresa la clave">
+      </label>
+      <p id="loginError" class="login-error" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button id="cancelLogin" type="button" class="ghost-btn">Cancelar</button>
+        <button type="submit" class="primary-btn login-submit">Entrar</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
