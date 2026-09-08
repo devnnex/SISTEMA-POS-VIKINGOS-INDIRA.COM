@@ -1,0 +1,1 @@
+.compact-form{display:grid;grid-template-columns:110px 110px 1fr auto;gap:8px;margin-top:18px}.compact-form input,.compact-form select{min-height:40px}.compact-form button{white-space:nowrap}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fff8fc">
+  <title>Vikingos Indira POS</title>
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="src/styles.css">
+  <link rel="stylesheet" href="src/extras.css">
+</head>
+<body>
+  <div id="fatalError" class="fatal" hidden><div><h1>No pudimos iniciar el sistema</h1><p id="fatalMessage"></p><button onclick="location.reload()">Intentar de nuevo</button></div></div>
+
+  <div id="setupScreen" class="setup-screen" hidden>
+    <div class="setup-panel">
+      <aside><img src="logo.png" alt="" width="94"><p>CONFIGURACIÓN INICIAL</p><h1>Bienvenido a<br>Vikingos Indira POS</h1><span>Unos pocos datos y estarás listo para vender.</span><ol><li class="active">Tu negocio</li><li>Preferencias</li><li>Administrador</li></ol></aside>
+      <form id="setupForm">
+        <div class="form-heading"><span>PRIMER INICIO</span><h2>Prepara tu punto de venta</h2><p>Todo se guarda localmente en este computador.</p></div>
+        <div class="form-grid">
+          <label class="full">Nombre del negocio<input name="businessName" required value="Vikingos Indira" maxlength="80"></label>
+          <label>Moneda<select name="currency"><option value="COP">Peso colombiano (COP)</option><option value="USD">Dólar (USD)</option><option value="EUR">Euro (EUR)</option></select></label>
+          <label>Símbolo<input name="currencySymbol" required value="$" maxlength="4"></label>
+          <label>Impuesto predeterminado (%)<input name="taxPercent" type="number" min="0" max="100" step="0.01" value="0"></label>
+          <label>Impresora (opcional)<input name="printerName" placeholder="Configurar después"></label>
+          <label class="full">Nombre del administrador<input name="adminName" required value="Administrador" maxlength="80"></label>
+          <label>PIN de 4 a 8 dígitos<input name="pin" required type="password" inputmode="numeric" pattern="[0-9]{4,8}" autocomplete="new-password"></label>
+          <label>Confirmar PIN<input name="pinConfirm" required type="password" inputmode="numeric" pattern="[0-9]{4,8}" autocomplete="new-password"></label>
+        </div>
+        <p id="setupError" class="form-error" aria-live="polite"></p>
+        <button class="primary wide" type="submit">Completar configuración <span>→</span></button>
+      </form>
+    </div>
+  </div>
+
+  <div id="loginScreen" class="login-screen" hidden>
+    <form id="loginForm" class="login-card"><img src="logo.png" alt="" width="84"><p>SISTEMA POS LOCAL</p><h1 id="loginBusiness">Vikingos Indira</h1><label>PIN del administrador<input name="pin" type="password" inputmode="numeric" pattern="[0-9]*" autofocus required></label><p id="loginError" class="form-error" aria-live="polite"></p><button class="primary wide">Ingresar</button><small>Los datos permanecen en este computador.</small></form>
+  </div>
+
+  <div id="appShell" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand"><img src="logo.png" alt="" width="50"><span><strong>Vikingos Indira</strong><small>POS LOCAL</small></span></div>
+      <nav id="mainNav" aria-label="Módulos">
+        <button data-view="dashboard" class="active"><i>⌂</i>Dashboard</button>
+        <button data-view="pos"><i>⌁</i>Punto de venta</button>
+        <button data-view="products"><i>▦</i>Productos</button>
+        <button data-view="customers"><i>♙</i>Clientes</button>
+        <button data-view="sales"><i>≡</i>Ventas</button>
+        <button data-view="cash"><i>□</i>Caja</button>
+        <button data-view="expenses"><i>↘</i>Gastos</button>
+        <button data-view="users"><i>♧</i>Usuarios</button>
+        <button data-view="reports"><i>↗</i>Reportes</button>
+        <button data-view="settings"><i>⚙</i>Configuración</button>
+        <button data-view="backups"><i>⟲</i>Backups</button>
+      </nav>
+      <div class="sidebar-foot"><div class="local-chip"><span></span><div><strong>Modo local</strong><small>Sin conexión requerida</small></div></div><button id="lockButton">Bloquear sesión</button></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar"><div><span class="crumb">VIKINGOS INDIRA / <b id="crumb">DASHBOARD</b></span><h1 id="pageTitle">Buenos días</h1></div><div class="top-actions"><span id="clock"></span><button id="quickBackup" title="Crear backup">⟲</button><div class="avatar" id="avatar">A</div></div></header>
+
+      <section class="view active" data-view-panel="dashboard">
+        <div class="kpi-grid"><article><span>Ventas de hoy</span><strong id="todayRevenue">$ 0</strong><small id="todayTransactions">0 transacciones</small></article><article><span>Unidades vendidas</span><strong id="todayUnits">0</strong><small>hoy</small></article><article><span>Caja esperada</span><strong id="cashExpected">$ 0</strong><small id="cashState">Caja cerrada</small></article><article class="accent"><span>Stock bajo</span><strong id="lowStock">0</strong><small>productos por revisar</small></article></div>
+        <div class="dashboard-grid"><article class="panel"><div class="panel-head"><div><p>ACTIVIDAD</p><h2>Ventas recientes</h2></div><button data-go="sales">Ver historial →</button></div><div class="table-scroll"><table><thead><tr><th>Número</th><th>Fecha</th><th>Pago</th><th>Total</th></tr></thead><tbody id="recentSales"></tbody></table></div></article><article class="panel focus-card"><p>ACCESO RÁPIDO</p><h2>Una venta en segundos</h2><span>Busca por nombre, SKU o código de barras.</span><button class="primary" data-go="pos">Nueva venta <b>→</b></button><div class="focus-art"><i></i><i></i><i></i></div></article></div>
+      </section>
+
+      <section class="view" data-view-panel="pos">
+        <div class="pos-layout"><div class="panel catalog"><div class="panel-head"><div><p>CATÁLOGO</p><h2>Productos</h2></div><button class="ghost" id="refreshProducts">Actualizar</button></div><label class="search">⌕<input id="productSearch" placeholder="Nombre, SKU o escanea un código…" autocomplete="off"></label><div id="productGrid" class="product-grid"></div></div><aside class="panel cart"><div class="panel-head"><div><p>VENTA ACTUAL</p><h2>Detalle</h2></div><button class="text-btn" id="clearCart">Limpiar</button></div><div id="cartItems" class="cart-items"></div><div class="cart-summary"><div><span>Subtotal</span><strong id="cartSubtotal">$ 0</strong></div><div><span>Impuestos</span><strong id="cartTax">$ 0</strong></div><div class="total"><span>Total</span><strong id="cartTotal">$ 0</strong></div></div><label>Método de pago<select id="paymentMethod"><option value="cash">Efectivo</option><option value="card">Tarjeta</option><option value="transfer">Transferencia</option><option value="mixed">Mixto</option></select></label><label>Valor recibido<input id="amountReceived" inputmode="numeric" placeholder="0"></label><button id="checkoutButton" class="primary wide">Cobrar venta</button><p id="saleMessage" class="inline-message"></p></aside></div>
+      </section>
+
+      <section class="view" data-view-panel="products"><div class="page-actions"><div><p>CATÁLOGO E INVENTARIO</p><h2>Productos</h2></div><button class="primary" id="newProduct">+ Nuevo producto</button></div><div class="panel"><label class="search">⌕<input id="productsFilter" placeholder="Buscar productos…"></label><div class="table-scroll"><table><thead><tr><th>Producto</th><th>SKU</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead><tbody id="productsTable"></tbody></table></div></div></section>
+      <section class="view" data-view-panel="customers"><div class="page-actions"><div><p>DIRECTORIO LOCAL</p><h2>Clientes</h2></div></div><div class="split"><form id="customerForm" class="panel form-card"><h3>Nuevo cliente</h3><label>Nombre<input name="name" required maxlength="100"></label><label>Documento<input name="document" maxlength="30"></label><label>Teléfono<input name="phone" maxlength="30"></label><label>Correo<input name="email" type="email" maxlength="120"></label><button class="primary">Guardar cliente</button><p id="customerMessage" class="inline-message"></p></form><div class="panel"><div class="table-scroll"><table><thead><tr><th>Nombre</th><th>Documento</th><th>Teléfono</th><th>Correo</th></tr></thead><tbody id="customersTable"></tbody></table></div></div></div></section>
+      <section class="view" data-view-panel="sales"><div class="page-actions"><div><p>HISTORIAL</p><h2>Ventas</h2></div><button class="ghost" id="reloadSales">Actualizar</button></div><div class="panel"><div class="table-scroll"><table><thead><tr><th>Número</th><th>Fecha</th><th>Artículos</th><th>Pago</th><th>Total</th><th>Estado</th></tr></thead><tbody id="salesTable"></tbody></table></div></div></section>
+      <section class="view" data-view-panel="cash"><div class="page-actions"><div><p>CONTROL DE EFECTIVO</p><h2>Caja</h2></div><span id="cashBadge" class="badge">Cerrada</span></div><div class="split"><form class="panel form-card" id="cashSessionForm"><h3 id="cashFormTitle">Abrir caja</h3><label id="cashAmountLabel">Monto inicial<input name="amount" type="number" min="0" required></label><label>Nota<input name="notes" maxlength="140" placeholder="Opcional"></label><button class="primary wide">Confirmar</button><p id="cashMessage" class="inline-message"></p></form><div class="panel"><p>RESUMEN ACTUAL</p><dl class="summary-list"><div><dt>Monto inicial</dt><dd id="openingAmount">$ 0</dd></div><div><dt>Ventas en efectivo</dt><dd id="cashSales">$ 0</dd></div><div><dt>Movimientos</dt><dd id="cashMovements">$ 0</dd></div><div><dt>Efectivo esperado</dt><dd id="expectedCash">$ 0</dd></div></dl><form id="cashMovementForm" class="compact-form"><select name="type"><option value="income">Entrada</option><option value="withdrawal">Salida</option></select><input name="amount" type="number" min="1" placeholder="Monto" required><input name="description" placeholder="Motivo" required maxlength="140"><button class="ghost">Registrar</button></form></div></div></section>
+      <section class="view" data-view-panel="expenses"><div class="page-actions"><div><p>CONTROL DE GASTOS</p><h2>Gastos</h2></div></div><div class="split"><form id="expenseForm" class="panel form-card"><h3>Registrar gasto</h3><label>Categoría<input name="category" required maxlength="60" placeholder="Ej. Insumos"></label><label>Descripción<input name="description" required maxlength="140"></label><label>Monto<input name="amount" type="number" min="1" required></label><button class="primary">Guardar gasto</button><p id="expenseMessage" class="inline-message"></p></form><div class="panel"><div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th></tr></thead><tbody id="expensesTable"></tbody></table></div></div></div></section>
+      <section class="view" data-view-panel="users"><div class="page-actions"><div><p>ACCESO LOCAL</p><h2>Usuarios y cajeros</h2></div></div><div class="panel"><div class="table-scroll"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Creado</th></tr></thead><tbody id="usersTable"></tbody></table></div></div></section>
+      <section class="view" data-view-panel="reports"><div class="page-actions"><div><p>EXPORTACIONES</p><h2>Reportes básicos</h2></div></div><div class="export-grid"><button data-export="sales"><i>⇩</i><strong>Ventas CSV</strong><span>Detalle de ventas e importes</span></button><button data-export="products"><i>⇩</i><strong>Productos CSV</strong><span>Catálogo, precios y SKU</span></button><button data-export="inventory"><i>⇩</i><strong>Inventario CSV</strong><span>Existencias y alertas</span></button></div><p id="exportMessage" class="inline-message"></p></section>
+      <section class="view" data-view-panel="settings"><div class="page-actions"><div><p>CONFIGURACIÓN</p><h2>Negocio y diagnóstico</h2></div></div><div class="split"><form id="settingsForm" class="panel form-card"><h3>Datos generales</h3><label>Nombre del negocio<input name="businessName" required></label><label>Símbolo monetario<input name="currencySymbol" maxlength="4" required></label><label>Impuesto predeterminado (%)<input name="taxPercent" type="number" min="0" max="100" step=".01"></label><button class="primary">Guardar cambios</button><p id="settingsMessage" class="inline-message"></p></form><div class="panel diagnostic"><h3>Diagnóstico</h3><dl><div><dt>Base de datos</dt><dd id="diagDb">Comprobando…</dd></div><div><dt>Estado general</dt><dd id="diagStatus">—</dd></div><div><dt>Versión</dt><dd id="diagVersion">—</dd></div><div><dt>Último backup</dt><dd id="diagBackup">Nunca</dd></div><div><dt>Ruta de datos</dt><dd id="diagPath">—</dd></div></dl><button class="ghost" id="runDiagnostics">Comprobar ahora</button></div></div></section>
+      <section class="view" data-view-panel="backups"><div class="page-actions"><div><p>PROTECCIÓN LOCAL</p><h2>Copias de seguridad</h2></div><div><button class="ghost" id="importBackup">Importar copia</button><button class="primary" id="createBackup">Crear copia ahora</button></div></div><div class="panel"><div class="backup-note">Las copias se generan con el mecanismo seguro de SQLite. Antes de restaurar, el sistema conserva automáticamente el estado actual.</div><div class="table-scroll"><table><thead><tr><th>Archivo</th><th>Fecha</th><th>Tamaño</th><th>Estado</th><th></th></tr></thead><tbody id="backupsTable"></tbody></table></div><p id="backupMessage" class="inline-message"></p></div></section>
+    </main>
+  </div>
+
+  <dialog id="productDialog"><form id="productForm" method="dialog" class="dialog-card"><header><div><p>INVENTARIO</p><h2>Nuevo producto</h2></div><button type="button" data-close-dialog>×</button></header><div class="form-grid"><label class="full">Nombre<input name="name" required maxlength="100"></label><label>SKU<input name="sku" maxlength="40"></label><label>Código de barras<input name="barcode" maxlength="80"></label><label>Precio<input name="price" type="number" min="0" required></label><label>Costo<input name="cost" type="number" min="0" value="0"></label><label>Stock inicial<input name="stock" type="number" min="0" step="1" value="0"></label><label>Stock mínimo<input name="minStock" type="number" min="0" step="1" value="5"></label></div><p id="productError" class="form-error"></p><footer><button type="button" class="ghost" data-close-dialog>Cancelar</button><button type="submit" class="primary">Guardar producto</button></footer></form></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

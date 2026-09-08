@@ -1,0 +1,18 @@
+{
+  "appName": "Vikingos Indira POS",
+  "productName": "Vikingos Indira POS",
+  "shortName": "Vikingos Indira",
+  "identifier": "co.vikingosindira.pos",
+  "publisher": "Vikingos Indira",
+  "version": "1.0.0",
+  "description": "Punto de venta local para Windows que funciona sin Internet.",
+  "repositoryUrl": "https://github.com/devnnex/SISTEMA-POS-VIKINGOS-INDIRA.COM",
+  "websiteUrl": "https://devnnex.github.io/SISTEMA-POS-VIKINGOS-INDIRA.COM/",
+  "supportEmail": "soporte@vikingosindira.com",
+  "currency": "COP",
+  "currencySymbol": "$",
+  "currencyDecimals": 0,
+  "defaultTaxBasisPoints": 0,
+  "backupRetentionDays": 30,
+  "windowsTimestampUrl": "http://timestamp.digicert.com"
+}

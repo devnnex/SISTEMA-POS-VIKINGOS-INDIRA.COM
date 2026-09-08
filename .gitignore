@@ -1,0 +1,38 @@
+node_modules/
+dist-app/
+dist-site/
+src-tauri/target/
+src-tauri/gen/
+.vite/
+*.log
+
+# Secretos y certificados privados
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+certificate/
+certificates/
+private-keys/
+src-tauri/tauri.release.conf.json
+
+# Datos operativos y copias reales
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+Backups/
+backups/
+Exports/
+exports/
+
+# Artefactos de Windows
+*.exe
+*.msi
+*.sha256
+Thumbs.db
+.DS_Store

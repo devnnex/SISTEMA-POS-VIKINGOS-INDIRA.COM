@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Vikingos Indira POS",
+  "version": "1.0.0",
+  "identifier": "co.vikingosindira.pos",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist-app"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Vikingos Indira POS",
+        "width": 1366,
+        "height": 820,
+        "minWidth": 1050,
+        "minHeight": 680,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self'; font-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Vikingos Indira",
+    "copyright": "Copyright © 2026 Vikingos Indira",
+    "shortDescription": "Punto de venta local para Windows",
+    "longDescription": "Sistema POS local con ventas, inventario, caja y copias de seguridad.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "webviewInstallMode": { "type": "offlineInstaller" },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["Spanish"],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Vikingos Indira POS",
+        "compression": "lzma"
+      }
+    }
+  },
+  "plugins": {
+    "sql": { "preload": ["sqlite:pos.db"] }
+  }
+}

@@ -1,0 +1,32 @@
+[package]
+name = "vikingos-indira-pos"
+version = "1.0.0"
+description = "POS local de Vikingos Indira"
+authors = ["Vikingos Indira"]
+edition = "2021"
+
+[lib]
+name = "vikingos_indira_pos_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-dialog = "2"
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
+chrono = { version = "0.4", features = ["serde"] }
+csv = "1"
+thiserror = "2"
+log = "0.4"
+tauri-plugin-log = "2"
+
+[dev-dependencies]
+tempfile = "3"

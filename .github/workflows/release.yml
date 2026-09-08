@@ -1,0 +1,126 @@
+name: Release Windows firmado
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-sign-release:
+    runs-on: windows-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Validar secretos de firma
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) { throw "Falta WINDOWS_CERTIFICATE" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { throw "Falta WINDOWS_CERTIFICATE_PASSWORD" }
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar versión del tag
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tauriVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $productVersion = (Get-Content config/product.json -Raw | ConvertFrom-Json).version
+          $cargoVersion = [regex]::Match((Get-Content src-tauri/Cargo.toml -Raw), '(?ms)^\[package\].*?^version\s*=\s*"([^"]+)"').Groups[1].Value
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "El tag $env:GITHUB_REF_NAME no coincide con package.json ($version)" }
+          if (@($tauriVersion, $productVersion, $cargoVersion) -contains $null -or $tauriVersion -ne $version -or $productVersion -ne $version -or $cargoVersion -ne $version) { throw "Las versiones del proyecto no coinciden" }
+
+      - name: Importar certificado temporal
+        id: certificate
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certDir = Join-Path $env:RUNNER_TEMP "vikingos-signing"
+          New-Item -ItemType Directory -Path $certDir -Force | Out-Null
+          $pfx = Join-Path $certDir "certificate.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $secure = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $secure -Exportable:$false
+          if (-not $cert.HasPrivateKey) { throw "El certificado importado no contiene la clave privada" }
+          $publisher = $cert.GetNameInfo([Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ([string]::IsNullOrWhiteSpace($publisher)) { throw "No se pudo leer el publisher del certificado" }
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+          "subject=$($cert.Subject)" >> $env:GITHUB_OUTPUT
+          $overlay = @{ bundle = @{ publisher = $publisher; windows = @{ certificateThumbprint = $cert.Thumbprint; digestAlgorithm = "sha256"; timestampUrl = "http://timestamp.digicert.com" } } } | ConvertTo-Json -Depth 5
+          Set-Content -LiteralPath "src-tauri/tauri.release.conf.json" -Value $overlay -Encoding UTF8
+
+      - name: Tests y build web
+        run: npm run check
+
+      - name: Tests Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+      - name: Compilar NSIS offline y firmar
+        run: npx tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release.conf.json
+
+      - name: Verificar firmas y preparar assets
+        id: assets
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter signtool.exe -Recurse | Where-Object FullName -Match '\\x64\\signtool.exe$' | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "SignTool no está disponible" }
+          $target = "src-tauri/target/x86_64-pc-windows-msvc/release"
+          $binary = Join-Path $target "vikingos-indira-pos.exe"
+          $installer = Get-ChildItem (Join-Path $target "bundle/nsis") -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "No se generó el instalador NSIS" }
+          $binaryVerification = & $signtool verify /pa /all /v $binary 2>&1
+          $binaryVerification | Write-Output
+          if ($LASTEXITCODE -ne 0) { throw "El ejecutable no tiene una firma Authenticode válida" }
+          if ($binaryVerification -notmatch "timestamp") { throw "El ejecutable no contiene timestamp verificable" }
+          $installerVerification = & $signtool verify /pa /all /v $installer.FullName 2>&1
+          $installerVerification | Write-Output
+          if ($LASTEXITCODE -ne 0) { throw "El instalador no tiene una firma Authenticode válida" }
+          if ($installerVerification -notmatch "timestamp") { throw "El instalador no contiene timestamp verificable" }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $releaseDir = Join-Path $env:RUNNER_TEMP "release-assets"
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+          $final = Join-Path $releaseDir "Vikingos-Indira-POS-Setup-$version-x64.exe"
+          Copy-Item $installer.FullName $final
+          $hash = (Get-FileHash $final -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $final -Leaf)" | Set-Content "$final.sha256" -Encoding ascii
+          "installer=$final" >> $env:GITHUB_OUTPUT
+          "checksum=$final.sha256" >> $env:GITHUB_OUTPUT
+
+      - name: Crear GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INSTALLER: ${{ steps.assets.outputs.installer }}
+          CHECKSUM: ${{ steps.assets.outputs.checksum }}
+        run: gh release create $env:GITHUB_REF_NAME $env:INSTALLER $env:CHECKSUM --verify-tag --generate-notes --title "Vikingos Indira POS $env:GITHUB_REF_NAME"
+
+      - name: Limpiar certificado
+        if: always()
+        shell: pwsh
+        env:
+          THUMBPRINT: ${{ steps.certificate.outputs.thumbprint }}
+        run: |
+          if ($env:THUMBPRINT) { Remove-Item "Cert:\CurrentUser\My\$env:THUMBPRINT" -Force -ErrorAction SilentlyContinue }
+          Remove-Item (Join-Path $env:RUNNER_TEMP "vikingos-signing") -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "src-tauri/tauri.release.conf.json" -Force -ErrorAction SilentlyContinue

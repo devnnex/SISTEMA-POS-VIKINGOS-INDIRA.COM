@@ -1,225 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vikingos Indira POS</title>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff8fc">
+  <meta name="description" content="Vikingos Indira POS: ventas, inventario y caja en tu computador, incluso sin Internet.">
+  <title>Vikingos Indira POS — Tu negocio no se detiene</title>
+  <link rel="icon" href="images/logo.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <img src="images/logo.png" alt="Vikingos Indira">
-        <div>
-          <p class="eyebrow">Sistema POS</p>
-          <h1>Vikingos Indira</h1>
+  <header class="site-header">
+    <a class="brand" href="#inicio" aria-label="Vikingos Indira POS, inicio">
+      <img src="images/logo.png" alt="" width="52" height="52">
+      <span><strong>Vikingos Indira</strong><small>POS para Windows</small></span>
+    </a>
+    <nav aria-label="Navegación principal"><a href="#funciones">Funciones</a><a href="#seguridad">Tus datos</a><a href="#preguntas">Preguntas</a></nav>
+    <a class="header-cta" href="#descargar">Descargar</a>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> Punto de venta 100% local</p>
+        <h1>Tu negocio sigue funcionando, <em>incluso cuando Internet no.</em></h1>
+        <p class="lead">Vende, controla inventario y cierra caja desde un sistema rápido, privado y hecho para trabajar todos los días.</p>
+        <div class="hero-actions">
+          <a class="button primary download-link" href="#descargar"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 4.7 10.3 3v8H3V4.7Zm8.3-1.9L21 1v10h-9.7V2.8ZM3 12h7.3v8L3 18.3V12Zm8.3 0H21v10l-9.7-1.8V12Z"/></svg>Descargar para Windows</a>
+          <span class="hero-note">Windows 10/11 · x64 · Sin cuotas</span>
         </div>
+        <ul class="trust-list" aria-label="Ventajas principales"><li>Funciona sin Internet</li><li>Instalación sencilla</li><li>Datos en tu computador</li></ul>
       </div>
-
-      <nav class="side-nav" aria-label="Secciones">
-        <button class="nav-btn active" data-section="sale">
-          <span>Venta</span>
-          <strong>Rapida</strong>
-        </button>
-        <button class="nav-btn" data-section="admin">
-          <span>Admin</span>
-          <strong>Cuentas</strong>
-        </button>
-      </nav>
-
-      <section class="quick-sale" aria-labelledby="saleTitle">
-        <div class="section-label">
-          <span id="saleTitle">Registrar venta</span>
-          <small>Intro para guardar</small>
-        </div>
-        <form id="saleForm" autocomplete="off">
-          <label for="quantityInput">Cantidad de Vikingos</label>
-          <input id="quantityInput" inputmode="numeric" pattern="[0-9]*" placeholder="0" aria-describedby="saleHint">
-          <p id="saleHint">El numero se multiplica por el precio unitario activo.</p>
-          <button type="submit" class="primary-btn">Registrar venta</button>
-        </form>
-      </section>
-
-      <section class="price-box">
-        <span>Precio unitario</span>
-        <strong id="sidePrice">$0</strong>
-      </section>
-
-      <div class="sidebar-actions">
-        <button id="themeToggle" class="icon-btn" type="button" aria-label="Cambiar modo">
-          <span class="sun">Dia</span>
-          <span class="moon">Noche</span>
-        </button>
+      <div class="product-frame" aria-label="Vista previa del sistema">
+        <div class="window-bar"><i></i><span>Vikingos Indira POS</span><b>—　□　×</b></div>
+        <img src="screenshots/desktop.png" alt="Panel de Vikingos Indira POS mostrando ventas y estadísticas" width="1440" height="900">
+        <div class="offline-badge"><span>✓</span><div><strong>Listo para vender</strong><small>Base local protegida</small></div></div>
       </div>
-    </aside>
+    </section>
 
-    <main class="workspace">
-      <section id="saleSection" class="view active-view">
-        <header class="page-header">
-          <div>
-            <p class="eyebrow">Caja activa</p>
-            <h2>Venta rapida de Vikingos</h2>
-          </div>
-          <div class="status-pill" id="todayStatus">Hoy: 0 vendidos</div>
-        </header>
+    <section class="proof" aria-label="Características clave">
+      <article><span>01</span><strong>Sin Internet</strong><p>Las ventas no dependen de una conexión.</p></article>
+      <article><span>02</span><strong>Sin mensualidades</strong><p>Tu operación vive en tu computador.</p></article>
+      <article><span>03</span><strong>Backups locales</strong><p>Crea y restaura copias verificadas.</p></article>
+      <article><span>04</span><strong>Instalación normal</strong><p>Un Setup.exe y acceso directo.</p></article>
+    </section>
 
-        <div class="register-panel">
-          <div>
-            <p class="panel-kicker">Ultima venta</p>
-            <h3 id="lastSaleAmount">$0</h3>
-            <span id="lastSaleMeta">Sin registros todavia</span>
-          </div>
-          <div class="big-count">
-            <span id="previewQty">0</span>
-            <small>unidades</small>
-          </div>
-        </div>
-      </section>
-
-      <section id="adminSection" class="view">
-        <header class="page-header admin-header">
-          <div>
-            <p class="eyebrow">Panel administrativo</p>
-            <h2>Contabilidad y Analisis</h2>
-          </div>
-          <div class="admin-tools">
-            <label class="price-editor" for="priceInput">
-              <span>Precio unitario</span>
-              <input id="priceInput" inputmode="numeric" pattern="[0-9]*">
-            </label>
-            <button id="updatePriceBtn" class="success-btn" type="button">
-              <i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i>
-              <span>Actualizar precio unitario</span>
-            </button>
-            <button id="clearHistoryBtn" class="danger-btn" type="button">Borrar historico</button>
-          </div>
-        </header>
-
-        <div class="filters-bar">
-          <div class="range-tabs" role="tablist" aria-label="Filtros por fecha">
-            <button class="range-btn active" data-range="today" type="button">Dia</button>
-            <button class="range-btn" data-range="yesterday" type="button">Ayer</button>
-            <button class="range-btn" data-range="7" type="button">7 dias</button>
-            <button class="range-btn" data-range="15" type="button">15 dias</button>
-            <button class="range-btn" data-range="month" type="button">Mes</button>
-            <button class="range-btn" data-range="year" type="button">Año</button>
-            <button class="range-btn" data-range="all" type="button">Todo</button>
-          </div>
-          <label class="search-box" for="searchInput">
-            <span>Buscar</span>
-            <input id="searchInput" placeholder="Fecha, hora, cantidad, total...">
-          </label>
-        </div>
-
-        <div class="kpi-grid">
-          <article class="kpi-card">
-            <span>Vikingos vendidos</span>
-            <strong id="kpiUnits">0</strong>
-            <small id="kpiTransactions">0 registros</small>
-          </article>
-          <article class="kpi-card accent">
-            <span>Total ingresado</span>
-            <strong id="kpiRevenue">$0</strong>
-            <small id="kpiRange">Periodo actual</small>
-          </article>
-          <article class="kpi-card chart-card">
-            <span>Ventas por mes</span>
-            <div id="monthlyChart" class="monthly-chart" aria-label="Grafica de ventas por mes"></div>
-          </article>
-          <article class="kpi-card">
-            <span>Mejor venta</span>
-            <strong id="kpiBest">$0</strong>
-            <small id="kpiBestMeta">Sin datos</small>
-          </article>
-        </div>
-
-        <section class="insights-panel">
-          <div>
-            <span>Lectura inteligente</span>
-            <p id="smartInsight">Registra ventas para activar el analisis del negocio.</p>
-          </div>
-          <div class="trend-meter">
-            <span id="trendPercent">0%</span>
-            <small>actividad del periodo</small>
-          </div>
-        </section>
-
-        <section class="records-section">
-          <div class="section-heading">
-            <h3>Historial de registros</h3>
-            <span id="recordsCount">0 resultados</span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha y hora</th>
-                  <th>Cantidad</th>
-                  <th>Precio unitario</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody id="recordsBody"></tbody>
-            </table>
-            <div id="emptyState" class="empty-state">No hay registros para mostrar.</div>
-          </div>
-        </section>
-      </section>
-    </main>
-  </div>
-
-  <button id="chatToggle" class="chat-pill" type="button" aria-label="Abrir chat administrativo">
-    <span>Chat</span>
-  </button>
-
-  <section id="chatPanel" class="chat-panel" aria-label="Chat administrativo">
-    <header>
-      <div>
-        <strong>Asistente contable</strong>
-        <span>Pregunta por ventas, totales o tendencias</span>
+    <section class="section features" id="funciones">
+      <div class="section-title"><p class="eyebrow">Todo bajo control</p><h2>Lo esencial para vender.<br><em>Nada que estorbe.</em></h2></div>
+      <div class="feature-grid">
+        <article class="feature-card large"><div class="icon">↗</div><h3>Ventas ágiles</h3><p>Busca productos, registra pagos y descuenta existencias en una sola operación segura.</p><div class="mini-pos"><span>Venta actual</span><strong>$ 24.000</strong><button>Cobrar venta</button></div></article>
+        <article class="feature-card"><div class="icon">▦</div><h3>Inventario claro</h3><p>Existencias y movimientos sin hojas dispersas.</p><div class="stock-lines"><i style="--w:82%"></i><i style="--w:58%"></i><i style="--w:70%"></i></div></article>
+        <article class="feature-card"><div class="icon">◫</div><h3>Caja ordenada</h3><p>Aperturas, cierres, ingresos, retiros y gastos trazables.</p><div class="status-chip">● Caja abierta</div></article>
+        <article class="feature-card wide"><div><div class="icon">⌁</div><h3>Reportes que sí ayudan</h3><p>Consulta ventas por periodo y exporta productos, inventario o ventas en CSV.</p></div><div class="chart" aria-hidden="true"><i style="--h:38%"></i><i style="--h:54%"></i><i style="--h:44%"></i><i style="--h:78%"></i><i style="--h:64%"></i><i style="--h:92%"></i></div></article>
       </div>
-      <button id="chatClose" type="button" aria-label="Cerrar chat">x</button>
-    </header>
-    <div id="chatMessages" class="chat-messages"></div>
-    <form id="chatForm" class="chat-form" autocomplete="off">
-      <input id="chatInput" placeholder="Ej: cuanto vendi hoy?">
-      <button type="submit">Enviar</button>
-    </form>
-  </section>
+    </section>
 
-  <div id="confirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-card">
-      <h3 id="modalTitle">Borrar historico</h3>
-      <p>Esta accion eliminara todos los registros guardados en este dispositivo. Confirma solo si ya hiciste respaldo de tus cuentas.</p>
-      <div class="modal-actions">
-        <button id="cancelClear" type="button" class="ghost-btn">Cancelar</button>
-        <button id="confirmClear" type="button" class="danger-btn">Si, borrar</button>
-      </div>
-    </div>
-  </div>
+    <section class="section steps">
+      <div class="section-title centered"><p class="eyebrow">Así de simple</p><h2>Del instalador a tu primera venta.</h2></div>
+      <ol><li><b>1</b><div><strong>Instala</strong><p>Abre el Setup.exe y crea el acceso directo.</p></div></li><li><b>2</b><div><strong>Configura</strong><p>Registra tu negocio, moneda y administrador.</p></div></li><li><b>3</b><div><strong>Vende</strong><p>Todo queda guardado de forma local.</p></div></li></ol>
+    </section>
 
-  <div id="adminLoginModal" class="modal-backdrop login-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <form id="adminLoginForm" class="modal-card login-card" autocomplete="off">
-      <div class="login-icon">
-        <i class="fa-solid fa-lock" aria-hidden="true"></i>
-      </div>
-      <p class="eyebrow">Acceso privado</p>
-      <h3 id="loginTitle">Ingresar al panel admin</h3>
-      <label for="adminPassword">
-        <span>Contrasena</span>
-        <input id="adminPassword" type="password" inputmode="numeric" placeholder="Ingresa la clave">
-      </label>
-      <p id="loginError" class="login-error" aria-live="polite"></p>
-      <div class="modal-actions">
-        <button id="cancelLogin" type="button" class="ghost-btn">Cancelar</button>
-        <button type="submit" class="primary-btn login-submit">Entrar</button>
-      </div>
-    </form>
-  </div>
+    <section class="section data" id="seguridad">
+      <div class="data-copy"><p class="eyebrow">Privacidad por diseño</p><h2>Tus datos se quedan <em>contigo.</em></h2><p>No necesitas cuentas en la nube ni servidores externos. La información operativa se guarda en una base SQLite local con transacciones, verificación de integridad y copias seguras.</p><ul><li>Contraseñas y PIN protegidos con hashing</li><li>Recuperación antes de cada restauración</li><li>Datos separados de los archivos del programa</li></ul></div>
+      <div class="data-visual"><div class="computer"><img src="images/logo.png" alt="" width="120" height="120"><span>Base local</span></div><div class="orbit one">Ventas</div><div class="orbit two">Inventario</div><div class="orbit three">Backups</div></div>
+    </section>
 
-  <script src="app.js"></script>
+    <section class="section requirements">
+      <div><p class="eyebrow">Requisitos</p><h2>Preparado para tu PC.</h2></div>
+      <dl><div><dt>Sistema</dt><dd>Windows 10 u 11</dd></div><div><dt>Arquitectura</dt><dd>64 bits (x64)</dd></div><div><dt>Internet</dt><dd>No requerido al usarlo</dd></div><div><dt>Base de datos</dt><dd>Incluida y automática</dd></div></dl>
+    </section>
+
+    <section class="download-section" id="descargar">
+      <div><p class="eyebrow light">Disponible para Windows</p><h2>Empieza a vender<br>sin depender de Internet.</h2><p>El instalador incluye lo necesario para comenzar. Tus datos permanecen en tu computador.</p></div>
+      <div class="download-card"><img src="images/logo.png" alt="Vikingos Indira" width="74" height="74"><div><strong>Vikingos Indira POS</strong><span id="releaseMeta">Buscando la versión estable más reciente…</span></div><a id="downloadButton" class="button dark disabled" href="#" aria-disabled="true">Preparando descarga…</a><a id="releaseFallback" class="release-fallback" href="#" hidden>Ver descargas disponibles</a><code id="checksum" hidden></code></div>
+    </section>
+
+    <section class="section faq" id="preguntas">
+      <div class="section-title"><p class="eyebrow">Preguntas frecuentes</p><h2>Antes de instalar.</h2></div>
+      <div class="faq-list"><details open><summary>¿Funciona realmente sin Internet?</summary><p>Sí. Las ventas, productos, inventario, caja, usuarios y backups trabajan de forma local. Internet solo se usa para descargar una nueva versión.</p></details><details><summary>¿Debo instalar o configurar SQLite?</summary><p>No. La aplicación crea y actualiza la base de datos automáticamente en su primera ejecución.</p></details><details><summary>¿Dónde quedan mis datos?</summary><p>En la carpeta de datos de la aplicación de tu usuario de Windows, separada del directorio donde se instala el programa.</p></details><details><summary>¿Puedo guardar una copia fuera del computador?</summary><p>Sí. Puedes exportar un backup verificado y guardarlo en una memoria USB u otra ubicación segura.</p></details></div>
+    </section>
+  </main>
+
+  <footer><div class="brand"><img src="images/logo.png" alt="" width="44" height="44"><span><strong>Vikingos Indira</strong><small>POS local para Windows</small></span></div><p>© <span id="year"></span> Vikingos Indira. Tus ventas, en tus manos.</p><a id="supportLink" href="mailto:soporte@vikingosindira.com">Soporte</a></footer>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
