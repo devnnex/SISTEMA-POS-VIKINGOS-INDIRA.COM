@@ -1,115 +1,575 @@
-import { invoke } from "@tauri-apps/api/core";
-import Database from "@tauri-apps/plugin-sql";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import productConfig from "../../config/product.json";
+const STORAGE_KEY = "vikingos_pos_state_v1";
+const ADMIN_SESSION_KEY = "vikingos_admin_unlocked";
+const ADMIN_PASSWORD = "5678";
 
-const $ = (selector, root = document) => root.querySelector(selector);
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { settings: null, session: null, products: [], sales: [], customers: [], expenses: [], cart: [], cash: null, backups: [] };
-let sqlDatabase;
-const titles = { dashboard: "Buenos días", pos: "Punto de venta", products: "Productos e inventario", customers: "Clientes", sales: "Historial de ventas", cash: "Control de caja", expenses: "Gastos", users: "Usuarios y cajeros", reports: "Reportes", settings: "Configuración", backups: "Copias de seguridad" };
+const defaultState = {
+  price: 5000,
+  theme: "light",
+  sales: []
+};
 
-function money(value = 0) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: state.settings?.currency || productConfig.currency, maximumFractionDigits: Number(state.settings?.currency_decimals ?? productConfig.currencyDecimals) }).format(Number(value) / 10 ** Number(state.settings?.currency_decimals ?? productConfig.currencyDecimals));
-}
-function dateTime(value) { return value ? new Intl.DateTimeFormat("es-CO", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—"; }
-function minor(value) { return Math.round(Number(value || 0) * 10 ** Number(state.settings?.currency_decimals ?? productConfig.currencyDecimals)); }
-function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 2800); }
-function showFatal(error) { $("#fatalMessage").textContent = String(error?.message || error); $("#fatalError").hidden = false; }
-function formObject(form) { return Object.fromEntries(new FormData(form)); }
-function h(value) { return String(value ?? "").replace(/[&<>"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]); }
+const els = {
+  body: document.body,
+  navBtns: document.querySelectorAll(".nav-btn"),
+  saleSection: document.getElementById("saleSection"),
+  adminSection: document.getElementById("adminSection"),
+  saleForm: document.getElementById("saleForm"),
+  quantityInput: document.getElementById("quantityInput"),
+  previewQty: document.getElementById("previewQty"),
+  sidePrice: document.getElementById("sidePrice"),
+  priceInput: document.getElementById("priceInput"),
+  updatePriceBtn: document.getElementById("updatePriceBtn"),
+  themeToggle: document.getElementById("themeToggle"),
+  todayStatus: document.getElementById("todayStatus"),
+  lastSaleAmount: document.getElementById("lastSaleAmount"),
+  lastSaleMeta: document.getElementById("lastSaleMeta"),
+  rangeBtns: document.querySelectorAll(".range-btn"),
+  searchInput: document.getElementById("searchInput"),
+  kpiUnits: document.getElementById("kpiUnits"),
+  kpiRevenue: document.getElementById("kpiRevenue"),
+  kpiTransactions: document.getElementById("kpiTransactions"),
+  kpiRange: document.getElementById("kpiRange"),
+  monthlyChart: document.getElementById("monthlyChart"),
+  kpiBest: document.getElementById("kpiBest"),
+  kpiBestMeta: document.getElementById("kpiBestMeta"),
+  smartInsight: document.getElementById("smartInsight"),
+  trendPercent: document.getElementById("trendPercent"),
+  recordsBody: document.getElementById("recordsBody"),
+  recordsCount: document.getElementById("recordsCount"),
+  emptyState: document.getElementById("emptyState"),
+  clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+  confirmModal: document.getElementById("confirmModal"),
+  cancelClear: document.getElementById("cancelClear"),
+  confirmClear: document.getElementById("confirmClear"),
+  chatToggle: document.getElementById("chatToggle"),
+  chatPanel: document.getElementById("chatPanel"),
+  chatClose: document.getElementById("chatClose"),
+  chatMessages: document.getElementById("chatMessages"),
+  chatForm: document.getElementById("chatForm"),
+  chatInput: document.getElementById("chatInput"),
+  adminLoginModal: document.getElementById("adminLoginModal"),
+  adminLoginForm: document.getElementById("adminLoginForm"),
+  adminPassword: document.getElementById("adminPassword"),
+  loginError: document.getElementById("loginError"),
+  cancelLogin: document.getElementById("cancelLogin")
+};
 
-async function initialize() {
+let state = loadState();
+let currentRange = "today";
+let searchTerm = "";
+let priceFeedbackTimer;
+let activeSection = "sale";
+
+function loadState() {
   try {
-    sqlDatabase = await Database.load("sqlite:pos.db");
-    const boot = await invoke("initialize_app");
-    state.settings = boot.settings;
-    if (!boot.configured) { $("#setupScreen").hidden = false; return; }
-    $("#loginBusiness").textContent = state.settings.business_name;
-    $("#loginScreen").hidden = false;
-  } catch (error) { showFatal(error); }
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return { ...defaultState, ...saved, sales: Array.isArray(saved?.sales) ? saved.sales : [] };
+  } catch {
+    return { ...defaultState };
+  }
 }
 
-$("#setupForm").addEventListener("submit", async (event) => {
-  event.preventDefault(); const data = formObject(event.currentTarget); const error = $("#setupError"); error.textContent = "";
-  if (data.pin !== data.pinConfirm) { error.textContent = "Los PIN no coinciden."; return; }
-  try {
-    await invoke("complete_setup", { payload: { business_name: data.businessName, currency: data.currency, currency_symbol: data.currencySymbol, currency_decimals: data.currency === "COP" ? 0 : 2, tax_basis_points: Math.round(Number(data.taxPercent) * 100), admin_name: data.adminName, pin: data.pin, printer_name: data.printerName || null } });
-    state.settings = (await invoke("initialize_app")).settings; $("#setupScreen").hidden = true; $("#loginBusiness").textContent = state.settings.business_name; $("#loginScreen").hidden = false; toast("Configuración completada");
-  } catch (err) { error.textContent = String(err); }
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function money(value) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0
+  }).format(Number(value) || 0);
+}
+
+function prettyDate(value) {
+  return new Intl.DateTimeFormat("es-CO", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function onlyDigits(value) {
+  return String(value).replace(/\D/g, "");
+}
+
+function startOfDay(date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function endOfDay(date) {
+  const copy = new Date(date);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+}
+
+function getRangeDates(range) {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+
+  if (range === "today") return { from: todayStart, to: endOfDay(now), label: "Hoy" };
+
+  if (range === "yesterday") {
+    const yesterday = new Date(todayStart);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return { from: startOfDay(yesterday), to: endOfDay(yesterday), label: "Ayer" };
+  }
+
+  if (range === "7" || range === "15") {
+    const from = new Date(todayStart);
+    from.setDate(from.getDate() - (Number(range) - 1));
+    return { from, to: endOfDay(now), label: `Ultimos ${range} dias` };
+  }
+
+  if (range === "month") {
+    return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now), label: "Este mes" };
+  }
+
+  if (range === "year") {
+    return { from: new Date(now.getFullYear(), 0, 1), to: endOfDay(now), label: "Este año" };
+  }
+
+  return { from: null, to: null, label: "Todo el historico" };
+}
+
+function saleInRange(sale, range) {
+  const { from, to } = getRangeDates(range);
+  const date = new Date(sale.createdAt);
+  if (!from || !to) return true;
+  return date >= from && date <= to;
+}
+
+function salesForRange(range = currentRange) {
+  return state.sales.filter((sale) => saleInRange(sale, range));
+}
+
+function summarize(sales) {
+  const units = sales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const revenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+  const best = sales.reduce((top, sale) => (sale.total > (top?.total || 0) ? sale : top), null);
+  return { units, revenue, best, transactions: sales.length };
+}
+
+function filteredSales() {
+  const term = searchTerm.trim().toLowerCase();
+  return salesForRange().filter((sale) => {
+    if (!term) return true;
+    const haystack = [
+      prettyDate(sale.createdAt),
+      sale.quantity,
+      sale.unitPrice,
+      sale.total,
+      money(sale.total)
+    ].join(" ").toLowerCase();
+    return haystack.includes(term);
+  });
+}
+
+function render() {
+  applyTheme();
+  els.sidePrice.textContent = money(state.price);
+  els.priceInput.value = state.price || "";
+  renderHome();
+  renderAdmin();
+}
+
+function renderHome() {
+  const today = summarize(salesForRange("today"));
+  const lastSale = [...state.sales].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+  els.todayStatus.textContent = `Hoy: ${today.units} vendidos`;
+
+  if (lastSale) {
+    els.lastSaleAmount.textContent = money(lastSale.total);
+    els.lastSaleMeta.textContent = `${lastSale.quantity} unidades - ${prettyDate(lastSale.createdAt)}`;
+  } else {
+    els.lastSaleAmount.textContent = money(0);
+    els.lastSaleMeta.textContent = "Sin registros todavia";
+  }
+}
+
+function renderAdmin() {
+  const visibleSales = filteredSales().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const stats = summarize(visibleSales);
+  const allRangeStats = summarize(salesForRange());
+  const range = getRangeDates(currentRange);
+
+  els.kpiUnits.textContent = stats.units;
+  els.kpiRevenue.textContent = money(stats.revenue);
+  els.kpiTransactions.textContent = `${stats.transactions} ${stats.transactions === 1 ? "registro" : "registros"}`;
+  els.kpiRange.textContent = range.label;
+  els.kpiBest.textContent = money(stats.best?.total || 0);
+  els.kpiBestMeta.textContent = stats.best ? `${stats.best.quantity} unidades - ${prettyDate(stats.best.createdAt)}` : "Sin datos";
+  els.recordsCount.textContent = `${visibleSales.length} ${visibleSales.length === 1 ? "resultado" : "resultados"}`;
+  els.trendPercent.textContent = `${calculateTrend(allRangeStats)}%`;
+  els.smartInsight.textContent = buildInsight(visibleSales, allRangeStats);
+  renderMonthlyChart();
+
+  els.recordsBody.innerHTML = visibleSales.map((sale) => `
+    <tr>
+      <td>${prettyDate(sale.createdAt)}</td>
+      <td>${sale.quantity}</td>
+      <td>${money(sale.unitPrice)}</td>
+      <td>${money(sale.total)}</td>
+    </tr>
+  `).join("");
+
+  els.emptyState.style.display = visibleSales.length ? "none" : "block";
+}
+
+function renderMonthlyChart() {
+  const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const currentYear = new Date().getFullYear();
+  const months = Array.from({ length: 12 }, (_, index) => ({
+    label: monthNames[index],
+    revenue: 0,
+    units: 0
+  }));
+
+  state.sales.forEach((sale) => {
+    const date = new Date(sale.createdAt);
+    if (date.getFullYear() !== currentYear) return;
+    months[date.getMonth()].revenue += sale.total;
+    months[date.getMonth()].units += sale.quantity;
+  });
+
+  const maxRevenue = Math.max(...months.map((month) => month.revenue), 0);
+
+  els.monthlyChart.innerHTML = months.map((month) => {
+    const height = maxRevenue ? Math.max(8, Math.round((month.revenue / maxRevenue) * 100)) : 8;
+    const label = `${month.label}: ${money(month.revenue)} - ${month.units} vendidos`;
+    return `
+      <div class="month-bar" data-label="${label}">
+        <div class="month-bar-fill" style="height: ${height}%"></div>
+        <span>${month.label}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function calculateTrend(stats) {
+  if (!state.sales.length || !stats.transactions) return 0;
+  return Math.min(100, Math.round((stats.transactions / state.sales.length) * 100));
+}
+
+function buildInsight(visibleSales, rangeStats) {
+  if (!visibleSales.length) {
+    return searchTerm
+      ? "No encontre ventas con esa busqueda dentro del periodo seleccionado."
+      : "No hay ventas en este periodo. Cuando registres unidades, aqui veras una lectura clara de ingreso, volumen y mejores movimientos.";
+  }
+
+  const stats = summarize(visibleSales);
+  const unitWord = stats.units === 1 ? "Vikingo" : "Vikingos";
+  const bestHour = getTopHour(visibleSales);
+  const coverage = rangeStats.transactions ? Math.round((stats.transactions / rangeStats.transactions) * 100) : 100;
+
+  return `En ${getRangeDates(currentRange).label.toLowerCase()} tienes ${stats.units} ${unitWord} vendidos y ${money(stats.revenue)} ingresados. La hora con mejor movimiento es ${bestHour}. La busqueda actual cubre el ${coverage}% de los registros del periodo.`;
+}
+
+function getTopHour(sales) {
+  const buckets = sales.reduce((acc, sale) => {
+    const hour = new Date(sale.createdAt).getHours();
+    acc[hour] = (acc[hour] || 0) + sale.total;
+    return acc;
+  }, {});
+  const topHour = Object.entries(buckets).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (topHour === undefined) return "sin datos";
+  const hour = Number(topHour);
+  return new Intl.DateTimeFormat("es-CO", { hour: "numeric" }).format(new Date(2026, 0, 1, hour));
+}
+
+function applyTheme() {
+  els.body.classList.toggle("dark", state.theme === "dark");
+}
+
+function addSale(quantity) {
+  const sale = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    quantity,
+    unitPrice: Number(state.price) || 0,
+    total: quantity * (Number(state.price) || 0),
+    createdAt: new Date().toISOString()
+  };
+  state.sales.push(sale);
+  saveState();
+  render();
+  els.quantityInput.value = "";
+  els.previewQty.textContent = "0";
+}
+
+function updateUnitPrice() {
+  const price = Number(onlyDigits(els.priceInput.value));
+  const priceEditor = els.priceInput.closest(".price-editor");
+
+  clearTimeout(priceFeedbackTimer);
+
+  if (!price) {
+    priceEditor.classList.add("error");
+    els.updatePriceBtn.classList.add("is-error");
+    els.updatePriceBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Ingresa un precio</span>';
+    priceFeedbackTimer = setTimeout(() => {
+      priceEditor.classList.remove("error");
+      resetPriceButton();
+    }, 1500);
+    return;
+  }
+
+  els.updatePriceBtn.disabled = true;
+  els.updatePriceBtn.classList.remove("is-saved", "is-error");
+  els.updatePriceBtn.classList.add("is-saving");
+  els.updatePriceBtn.innerHTML = '<i class="fa-solid fa-circle-notch" aria-hidden="true"></i><span>Guardando...</span>';
+
+  setTimeout(() => {
+    state.price = price;
+    saveState();
+    render();
+
+    priceEditor.classList.add("saved");
+    els.updatePriceBtn.disabled = false;
+    els.updatePriceBtn.classList.remove("is-saving");
+    els.updatePriceBtn.classList.add("is-saved");
+    els.updatePriceBtn.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i><span>Precio actualizado</span>';
+
+    priceFeedbackTimer = setTimeout(() => {
+      priceEditor.classList.remove("saved");
+      resetPriceButton();
+    }, 1400);
+  }, 520);
+}
+
+function resetPriceButton() {
+  els.updatePriceBtn.disabled = false;
+  els.updatePriceBtn.classList.remove("is-saving", "is-saved", "is-error");
+  els.updatePriceBtn.innerHTML = '<i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i><span>Actualizar precio unitario</span>';
+}
+
+function adminUnlocked() {
+  return sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
+}
+
+function openAdminLogin() {
+  els.adminLoginModal.classList.add("open");
+  els.loginError.textContent = "";
+  els.adminPassword.value = "";
+  setTimeout(() => els.adminPassword.focus(), 60);
+}
+
+function closeAdminLogin() {
+  els.adminLoginModal.classList.remove("open");
+  els.loginError.textContent = "";
+  els.adminPassword.value = "";
+}
+
+function switchSection(section) {
+  if (section === "admin" && !adminUnlocked()) {
+    openAdminLogin();
+    return;
+  }
+
+  activeSection = section;
+  els.navBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.section === section));
+  els.saleSection.classList.toggle("active-view", section === "sale");
+  els.adminSection.classList.toggle("active-view", section === "admin");
+  els.body.classList.toggle("admin-active", section === "admin");
+
+  if (section !== "admin") {
+    els.chatPanel.classList.remove("open");
+  }
+}
+
+function pushMessage(role, text) {
+  const bubble = document.createElement("div");
+  bubble.className = `message ${role}`;
+  bubble.textContent = text;
+  els.chatMessages.appendChild(bubble);
+  els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+}
+
+function normalizeText(value) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function answerQuestion(question) {
+  const q = normalizeText(question);
+  let range = currentRange;
+  if (q.includes("hoy")) range = "today";
+  if (q.includes("ayer")) range = "yesterday";
+  if (q.includes("7")) range = "7";
+  if (q.includes("15")) range = "15";
+  if (q.includes("mes")) range = "month";
+  if (q.includes("ano")) range = "year";
+  if (q.includes("todo") || q.includes("historico")) range = "all";
+
+  const stats = summarize(salesForRange(range));
+  const label = getRangeDates(range).label.toLowerCase();
+
+  if (!stats.transactions) {
+    return `Por ahora no hay ventas registradas para ${label}. Cuando ingreses ventas con Intro, podre calcular unidades, ingresos y movimientos por periodo.`;
+  }
+
+  if (q.includes("mejor") || q.includes("mayor")) {
+    return `La mejor venta de ${label} fue de ${money(stats.best.total)}, con ${stats.best.quantity} unidades a ${money(stats.best.unitPrice)} cada una, registrada el ${prettyDate(stats.best.createdAt)}.`;
+  }
+
+  if (q.includes("promedio") || q.includes("ticket")) {
+    return `Ese indicador fue reemplazado por la grafica de ventas por mes. Para ${label}, tienes ${stats.units} Vikingos vendidos y ${money(stats.revenue)} ingresados.`;
+  }
+
+  if (q.includes("cuanto") || q.includes("total") || q.includes("ingreso") || q.includes("vendi")) {
+    return `En ${label} vendiste ${stats.units} Vikingos y el total ingresado es ${money(stats.revenue)}.`;
+  }
+
+  return `Resumen de ${label}: ${stats.units} Vikingos vendidos, ${money(stats.revenue)} ingresados y ${stats.transactions} registros.`;
+}
+
+els.navBtns.forEach((btn) => {
+  btn.addEventListener("click", () => switchSection(btn.dataset.section));
 });
 
-$("#loginForm").addEventListener("submit", async (event) => {
-  event.preventDefault(); const data = formObject(event.currentTarget); const error = $("#loginError"); error.textContent = "";
-  try { state.session = await invoke("login", { pin: data.pin }); $("#loginScreen").hidden = true; $("#appShell").hidden = false; $("#avatar").textContent = state.session.name.slice(0, 1).toUpperCase(); event.currentTarget.reset(); await loadAll(); }
-  catch (err) { error.textContent = String(err); }
+els.quantityInput.addEventListener("input", () => {
+  els.quantityInput.value = onlyDigits(els.quantityInput.value);
+  els.previewQty.textContent = els.quantityInput.value || "0";
 });
 
-async function loadAll() {
-  const [dashboard, products, sales, customers, expenses, cash, users, backups] = await Promise.all([invoke("dashboard_summary"), invoke("list_products"), invoke("list_sales", { limit: 250 }), invoke("list_customers"), invoke("list_expenses"), invoke("cash_status"), invoke("list_users"), invoke("list_backups")]);
-  state.products = products; state.sales = sales; state.customers = customers; state.expenses = expenses; state.cash = cash; state.backups = backups;
-  renderDashboard(dashboard); renderProducts(); renderSales(); renderCustomers(); renderExpenses(); renderCash(); renderUsers(users); renderBackups(); fillSettings();
-}
-
-function renderDashboard(data) {
-  $("#todayRevenue").textContent = money(data.today_revenue_minor); $("#todayTransactions").textContent = `${data.today_transactions} transacciones`; $("#todayUnits").textContent = data.today_units; $("#cashExpected").textContent = money(data.cash_expected_minor); $("#cashState").textContent = data.cash_open ? "Caja abierta" : "Caja cerrada"; $("#lowStock").textContent = data.low_stock_count;
-  $("#recentSales").innerHTML = data.recent_sales.length ? data.recent_sales.map(saleRow).join("") : `<tr><td colspan="4">Aún no hay ventas registradas.</td></tr>`;
-}
-function saleRow(sale) { return `<tr><td><strong>${sale.sale_number}</strong></td><td>${dateTime(sale.created_at)}</td><td>${paymentLabel(sale.payment_method)}</td><td><strong>${money(sale.total_minor)}</strong></td></tr>`; }
-function paymentLabel(method) { return ({ cash: "Efectivo", card: "Tarjeta", transfer: "Transferencia", mixed: "Mixto" })[method] || method || "—"; }
-
-function renderProducts() {
-  const term = ($("#productSearch")?.value || "").toLowerCase(); const visible = state.products.filter(p => `${p.name} ${p.sku || ""} ${p.barcode || ""}`.toLowerCase().includes(term));
-  $("#productGrid").innerHTML = visible.length ? visible.map(p => `<button class="product-card" data-product="${h(p.id)}" ${!p.active || p.stock_quantity <= 0 ? "disabled" : ""}><span>${h(p.sku || "SIN SKU")}</span><b>${h(p.name)}</b><strong>${money(p.price_minor)}</strong><small>${p.track_stock ? `${p.stock_quantity} disponibles` : "Sin control de stock"}</small></button>`).join("") : `<div class="empty-cart">No encontramos productos.</div>`;
-  $("#productsTable").innerHTML = state.products.length ? state.products.map(p => `<tr><td><strong>${h(p.name)}</strong></td><td>${h(p.sku || "—")}</td><td>${h(p.category_name || "Sin categoría")}</td><td>${money(p.price_minor)}</td><td>${p.stock_quantity}</td><td><span class="${p.stock_quantity <= p.min_stock ? "stock-low" : "stock-ok"}">${p.stock_quantity <= p.min_stock ? "Stock bajo" : "Disponible"}</span></td></tr>`).join("") : `<tr><td colspan="6">No hay productos.</td></tr>`;
-  $$("[data-product]").forEach(button => button.addEventListener("click", () => addToCart(button.dataset.product)));
-}
-function addToCart(id) { const product = state.products.find(p => p.id === id); if (!product) return; const line = state.cart.find(item => item.product_id === id); if (line) { if (line.quantity >= product.stock_quantity) return toast("No hay más existencias disponibles"); line.quantity += 1; } else state.cart.push({ product_id: id, name: product.name, unit_price_minor: product.price_minor, tax_basis_points: state.settings.tax_basis_points, quantity: 1, max: product.stock_quantity }); renderCart(); }
-function renderCart() {
-  $("#cartItems").innerHTML = state.cart.length ? state.cart.map(item => `<div class="cart-line"><div><strong>${h(item.name)}</strong><span>${money(item.unit_price_minor)} c/u</span></div><div class="quantity"><button data-delta="-1" data-id="${h(item.product_id)}">−</button><b>${item.quantity}</b><button data-delta="1" data-id="${h(item.product_id)}">+</button></div></div>`).join("") : `<div class="empty-cart"><span>Agrega productos para comenzar una venta.</span></div>`;
-  $$('[data-delta]').forEach(button => button.addEventListener("click", () => changeQuantity(button.dataset.id, Number(button.dataset.delta))));
-  const subtotal = state.cart.reduce((sum, item) => sum + item.unit_price_minor * item.quantity, 0); const tax = state.cart.reduce((sum, item) => sum + Math.round(item.unit_price_minor * item.quantity * item.tax_basis_points / 10000), 0); $("#cartSubtotal").textContent = money(subtotal); $("#cartTax").textContent = money(tax); $("#cartTotal").textContent = money(subtotal + tax); $("#amountReceived").value = (subtotal + tax) / 10 ** Number(state.settings.currency_decimals);
-}
-function changeQuantity(id, delta) { const line = state.cart.find(item => item.product_id === id); if (!line) return; line.quantity += delta; if (line.quantity > line.max) { line.quantity = line.max; toast("Stock máximo alcanzado"); } if (line.quantity <= 0) state.cart = state.cart.filter(item => item !== line); renderCart(); }
-
-$("#checkoutButton").addEventListener("click", async () => {
-  const msg = $("#saleMessage"); msg.textContent = ""; if (!state.cart.length) return toast("Agrega al menos un producto");
-  const total = state.cart.reduce((sum, item) => sum + item.unit_price_minor * item.quantity + Math.round(item.unit_price_minor * item.quantity * item.tax_basis_points / 10000), 0); const method = $("#paymentMethod").value; const received = minor($("#amountReceived").value);
-  if (method === "cash" && received < total) return toast("El efectivo recibido es insuficiente");
-  try { const result = await invoke("create_sale", { payload: { customer_id: null, user_id: state.session.id, items: state.cart.map(({ product_id, quantity }) => ({ product_id, quantity })), payments: [{ method, amount_minor: total, reference: null }], amount_received_minor: method === "cash" ? received : total } }); state.cart = []; renderCart(); msg.textContent = `Venta ${result.sale_number} guardada · Cambio ${money(result.change_minor)}`; toast("Venta registrada correctamente"); await loadAll(); }
-  catch (error) { msg.textContent = String(error); }
+els.saleForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const quantity = Number(onlyDigits(els.quantityInput.value));
+  if (!quantity) return;
+  addSale(quantity);
 });
 
-function renderSales() { $("#salesTable").innerHTML = state.sales.length ? state.sales.map(s => `<tr><td><strong>${s.sale_number}</strong></td><td>${dateTime(s.created_at)}</td><td>${s.item_count}</td><td>${paymentLabel(s.payment_method)}</td><td>${money(s.total_minor)}</td><td><span class="status-ok">Completada</span></td></tr>`).join("") : `<tr><td colspan="6">No hay ventas registradas.</td></tr>`; }
-function renderCash() { const c = state.cash; const open = Boolean(c?.is_open); $("#cashBadge").textContent = open ? "Abierta" : "Cerrada"; $("#cashBadge").classList.toggle("open", open); $("#cashFormTitle").textContent = open ? "Cerrar caja" : "Abrir caja"; $("#cashAmountLabel").firstChild.textContent = open ? "Efectivo contado" : "Monto inicial"; $("#openingAmount").textContent = money(c?.opening_amount_minor); $("#cashSales").textContent = money(c?.cash_sales_minor); $("#cashMovements").textContent = money(c?.movements_minor); $("#expectedCash").textContent = money(c?.expected_amount_minor); }
-$("#cashSessionForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget), msg = $("#cashMessage"); try { if (state.cash?.is_open) await invoke("close_cash_session", { payload: { counted_amount_minor: minor(data.amount), notes: data.notes || null, user_id: state.session.id } }); else await invoke("open_cash_session", { payload: { opening_amount_minor: minor(data.amount), notes: data.notes || null, user_id: state.session.id } }); event.currentTarget.reset(); msg.textContent = state.cash?.is_open ? "Caja cerrada correctamente." : "Caja abierta correctamente."; await loadAll(); } catch (error) { msg.textContent = String(error); } });
-$("#cashMovementForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget); try { await invoke("add_cash_movement", { payload: { movement_type: data.type, amount_minor: minor(data.amount), description: data.description, user_id: state.session.id } }); event.currentTarget.reset(); toast("Movimiento de caja registrado"); await loadAll(); } catch (error) { toast(String(error)); } });
+els.priceInput.addEventListener("input", () => {
+  els.priceInput.value = onlyDigits(els.priceInput.value);
+});
 
-function renderCustomers() { $("#customersTable").innerHTML = state.customers.length ? state.customers.map(c => `<tr><td><strong>${h(c.name)}</strong></td><td>${h(c.document || "—")}</td><td>${h(c.phone || "—")}</td><td>${h(c.email || "—")}</td></tr>`).join("") : `<tr><td colspan="4">No hay clientes registrados.</td></tr>`; }
-$("#customerForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget); try { await invoke("create_customer", { payload: { name: data.name, document: data.document || null, phone: data.phone || null, email: data.email || null } }); event.currentTarget.reset(); state.customers = await invoke("list_customers"); renderCustomers(); $("#customerMessage").textContent = "Cliente guardado."; } catch (error) { $("#customerMessage").textContent = String(error); } });
+els.priceInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  updateUnitPrice();
+});
 
-function renderExpenses() { $("#expensesTable").innerHTML = state.expenses.length ? state.expenses.map(e => `<tr><td>${dateTime(e.created_at)}</td><td>${h(e.category)}</td><td>${h(e.description)}</td><td><strong>${money(e.amount_minor)}</strong></td></tr>`).join("") : `<tr><td colspan="4">No hay gastos registrados.</td></tr>`; }
-$("#expenseForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget); try { await invoke("create_expense", { payload: { category: data.category, description: data.description, amount_minor: minor(data.amount), user_id: state.session.id } }); event.currentTarget.reset(); $("#expenseMessage").textContent = "Gasto guardado y descontado de caja."; await loadAll(); } catch (error) { $("#expenseMessage").textContent = String(error); } });
+els.updatePriceBtn.addEventListener("click", updateUnitPrice);
 
-function renderUsers(users) { $("#usersTable").innerHTML = users.map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.role === "admin" ? "Administrador" : "Cajero"}</td><td><span class="status-ok">${u.active ? "Activo" : "Inactivo"}</span></td><td>${dateTime(u.created_at)}</td></tr>`).join(""); }
-function fillSettings() { const form = $("#settingsForm"); form.businessName.value = state.settings.business_name; form.currencySymbol.value = state.settings.currency_symbol; form.taxPercent.value = state.settings.tax_basis_points / 100; }
-$("#settingsForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget); try { state.settings = await invoke("update_settings", { payload: { business_name: data.businessName, currency_symbol: data.currencySymbol, tax_basis_points: Math.round(Number(data.taxPercent) * 100) } }); $("#settingsMessage").textContent = "Configuración guardada."; } catch (error) { $("#settingsMessage").textContent = String(error); } });
+els.adminPassword.addEventListener("input", () => {
+  els.adminPassword.value = onlyDigits(els.adminPassword.value);
+});
 
-async function loadDiagnostics() { try { const d = await invoke("diagnostics"); $("#diagDb").textContent = d.database_ok ? "OK" : "Revisar"; $("#diagStatus").textContent = d.database_ok ? "Operativo" : "Atención requerida"; $("#diagVersion").textContent = d.app_version; $("#diagBackup").textContent = dateTime(d.last_backup_at); $("#diagPath").textContent = d.data_path; } catch (error) { $("#diagDb").textContent = "Error"; $("#diagStatus").textContent = String(error); } }
-function renderBackups() { $("#backupsTable").innerHTML = state.backups.length ? state.backups.map(b => `<tr><td><strong>${b.file_name}</strong></td><td>${dateTime(b.created_at)}</td><td>${(b.size_bytes / 1048576).toFixed(2)} MB</td><td><span class="status-ok">${b.status}</span></td><td><button class="text-btn" data-restore="${encodeURIComponent(b.path)}">Restaurar</button></td></tr>`).join("") : `<tr><td colspan="5">Aún no hay copias.</td></tr>`; $$('[data-restore]').forEach(btn => btn.addEventListener("click", () => restoreBackup(decodeURIComponent(btn.dataset.restore)))); }
-async function createBackup() { try { const backup = await invoke("create_backup"); toast(`Backup creado: ${backup.file_name}`); state.backups = await invoke("list_backups"); renderBackups(); } catch (error) { toast(String(error)); } }
-async function restoreBackup(path) { if (!confirm("Se creará una copia del estado actual antes de restaurar. ¿Continuar?")) return; try { if (sqlDatabase) { await sqlDatabase.close(); sqlDatabase = null; } await invoke("restore_backup", { path }); toast("Copia restaurada. Reiniciando…"); setTimeout(() => location.reload(), 900); } catch (error) { $("#backupMessage").textContent = String(error); try { sqlDatabase = await Database.load("sqlite:pos.db"); } catch {} } }
+els.adminLoginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (els.adminPassword.value === ADMIN_PASSWORD) {
+    sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
+    closeAdminLogin();
+    switchSection("admin");
+    return;
+  }
 
-$("#createBackup").addEventListener("click", createBackup); $("#quickBackup").addEventListener("click", createBackup);
-$("#importBackup").addEventListener("click", async () => { const path = await open({ multiple: false, filters: [{ name: "Base SQLite", extensions: ["db", "sqlite", "sqlite3"] }] }); if (path) restoreBackup(path); });
-$$('[data-export]').forEach(button => button.addEventListener("click", async () => { try { const defaultPath = await invoke("suggest_export_path", { kind: button.dataset.export }); const path = await save({ defaultPath, filters: [{ name: "CSV", extensions: ["csv"] }] }); if (!path) return; await invoke("export_csv", { kind: button.dataset.export, destination: path }); $("#exportMessage").textContent = `Archivo guardado en ${path}`; toast("Exportación completada"); } catch (error) { $("#exportMessage").textContent = String(error); } }));
+  els.loginError.textContent = "Contrasena incorrecta. Intenta de nuevo.";
+  els.adminPassword.select();
+});
 
-$("#newProduct").addEventListener("click", () => $("#productDialog").showModal()); $$('[data-close-dialog]').forEach(b => b.addEventListener("click", () => $("#productDialog").close()));
-$("#productForm").addEventListener("submit", async event => { event.preventDefault(); const data = formObject(event.currentTarget); try { await invoke("create_product", { payload: { name: data.name, sku: data.sku || null, barcode: data.barcode || null, price_minor: minor(data.price), cost_minor: minor(data.cost), stock_quantity: Number(data.stock), min_stock: Number(data.minStock) } }); event.currentTarget.reset(); $("#productDialog").close(); state.products = await invoke("list_products"); renderProducts(); toast("Producto creado"); } catch (error) { $("#productError").textContent = String(error); } });
+els.cancelLogin.addEventListener("click", () => {
+  closeAdminLogin();
+  switchSection(activeSection);
+});
 
-$("#mainNav").addEventListener("click", event => { const button = event.target.closest("button[data-view]"); if (button) showView(button.dataset.view); }); $$('[data-go]').forEach(button => button.addEventListener("click", () => showView(button.dataset.go)));
-function showView(view) { $$('[data-view]').forEach(b => b.classList.toggle("active", b.dataset.view === view)); $$('[data-view-panel]').forEach(p => p.classList.toggle("active", p.dataset.viewPanel === view)); $("#crumb").textContent = view.toUpperCase(); $("#pageTitle").textContent = titles[view]; if (view === "settings") loadDiagnostics(); }
-$("#productSearch").addEventListener("input", renderProducts); $("#productsFilter").addEventListener("input", event => { $("#productSearch").value = event.target.value; renderProducts(); }); $("#clearCart").addEventListener("click", () => { state.cart = []; renderCart(); }); $("#refreshProducts").addEventListener("click", async () => { state.products = await invoke("list_products"); renderProducts(); }); $("#reloadSales").addEventListener("click", loadAll); $("#runDiagnostics").addEventListener("click", loadDiagnostics);
-$("#lockButton").addEventListener("click", () => { state.session = null; $("#appShell").hidden = true; $("#loginScreen").hidden = false; });
-setInterval(() => { $("#clock").textContent = new Intl.DateTimeFormat("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date()); }, 1000);
-initialize();
+els.adminLoginModal.addEventListener("click", (event) => {
+  if (event.target === els.adminLoginModal) {
+    closeAdminLogin();
+    switchSection(activeSection);
+  }
+});
+
+els.rangeBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    currentRange = btn.dataset.range;
+    els.rangeBtns.forEach((item) => item.classList.toggle("active", item === btn));
+    renderAdmin();
+  });
+});
+
+els.searchInput.addEventListener("input", () => {
+  searchTerm = els.searchInput.value;
+  renderAdmin();
+});
+
+els.themeToggle.addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  saveState();
+  render();
+});
+
+els.clearHistoryBtn.addEventListener("click", () => {
+  els.confirmModal.classList.add("open");
+});
+
+els.cancelClear.addEventListener("click", () => {
+  els.confirmModal.classList.remove("open");
+});
+
+els.confirmModal.addEventListener("click", (event) => {
+  if (event.target === els.confirmModal) els.confirmModal.classList.remove("open");
+});
+
+els.confirmClear.addEventListener("click", () => {
+  state.sales = [];
+  saveState();
+  els.confirmModal.classList.remove("open");
+  render();
+});
+
+els.chatToggle.addEventListener("click", () => {
+  els.chatPanel.classList.toggle("open");
+  if (!els.chatMessages.children.length) {
+    pushMessage("bot", "Hola. Puedo ayudarte con totales, ventas por periodo, grafica mensual y la mejor venta registrada.");
+  }
+});
+
+els.chatClose.addEventListener("click", () => els.chatPanel.classList.remove("open"));
+
+els.chatForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const question = els.chatInput.value.trim();
+  if (!question) return;
+  pushMessage("user", question);
+  pushMessage("bot", answerQuestion(question));
+  els.chatInput.value = "";
+});
+
+render();
+
+
+const entryGate = document.getElementById("entryGate");
+const entryForm = document.getElementById("entryForm");
+const entryPin = document.getElementById("entryPin");
+const entryError = document.getElementById("entryError");
+
+function unlockApplication() {
+  sessionStorage.setItem("vikingos_pos_entry_unlocked", "true");
+  sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
+  entryGate.hidden = true;
+}
+
+if (sessionStorage.getItem("vikingos_pos_entry_unlocked") === "true") {
+  unlockApplication();
+} else {
+  entryForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    entryPin.value = onlyDigits(entryPin.value);
+    if (entryPin.value === ADMIN_PASSWORD) {
+      unlockApplication();
+      entryForm.reset();
+      return;
+    }
+    entryError.textContent = "PIN incorrecto. Intenta de nuevo.";
+    entryPin.select();
+  });
+  entryPin.addEventListener("input", () => {
+    entryPin.value = onlyDigits(entryPin.value);
+    entryError.textContent = "";
+  });
+}
