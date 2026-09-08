@@ -2,6 +2,7 @@ const button = document.querySelector("#downloadButton");
 const meta = document.querySelector("#releaseMeta");
 const fallback = document.querySelector("#releaseFallback");
 const checksum = document.querySelector("#checksum");
+const notice = document.querySelector("#releaseNotice");
 const config = await fetch("config/product.json").then((response) => response.json()).catch(() => ({}));
 
 function repositoryUrl() {
@@ -28,9 +29,18 @@ async function resolveLatestRelease() {
   }
   try {
     const [owner, repo] = new URL(repository).pathname.split("/").filter(Boolean);
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error("Release no disponible");
-    const release = await response.json();
+    const headers = { Accept: "application/vnd.github+json" };
+    const stableResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`, { headers });
+    let release;
+    if (stableResponse.ok) {
+      release = await stableResponse.json();
+    } else {
+      const releasesResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases?per_page=10`, { headers });
+      if (!releasesResponse.ok) throw new Error("Release no disponible");
+      const releases = await releasesResponse.json();
+      release = releases.find((candidate) => !candidate.draft && candidate.assets.some((asset) => /setup.*\.exe$/i.test(asset.name)));
+      if (!release) throw new Error("Instalador no disponible");
+    }
     const installer = release.assets.find((asset) => /setup.*x64.*\.exe$/i.test(asset.name)) || release.assets.find((asset) => /setup.*\.exe$/i.test(asset.name));
     if (!installer) throw new Error("Instalador no encontrado");
     const digest = release.assets.find((asset) => asset.name === `${installer.name}.sha256`);
@@ -39,7 +49,12 @@ async function resolveLatestRelease() {
     button.classList.remove("disabled");
     button.removeAttribute("aria-disabled");
     const size = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(installer.size / 1048576);
-    meta.textContent = `${release.tag_name} · Windows 10/11 · x64 · ${size} MB · ${new Date(release.published_at).toLocaleDateString("es-CO")}`;
+    const releaseType = release.prerelease ? "Prueba sin firma digital" : "Versión estable";
+    meta.textContent = `${release.tag_name} · ${releaseType} · Windows 10/11 · x64 · ${size} MB · ${new Date(release.published_at).toLocaleDateString("es-CO")}`;
+    if (release.prerelease) {
+      notice.textContent = "Versión de prueba: Windows puede mostrar una advertencia de SmartScreen. No desactives la seguridad del equipo.";
+      notice.hidden = false;
+    }
     if (digest) {
       const digestResponse = await fetch(digest.browser_download_url);
       if (digestResponse.ok) {
