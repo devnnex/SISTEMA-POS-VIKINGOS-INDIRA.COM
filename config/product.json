@@ -9,10 +9,10 @@
   "repositoryUrl": "https://github.com/devnnex/SISTEMA-POS-VIKINGOS-INDIRA.COM",
   "websiteUrl": "https://devnnex.github.io/SISTEMA-POS-VIKINGOS-INDIRA.COM/",
   "download": {
-    "url": "https://github.com/devnnex/SISTEMA-POS-VIKINGOS-INDIRA.COM/releases/download/test-v1.0.0/Vikingos-Indira-POS-Setup-1.0.0-x64.exe",
-    "version": "test-v1.0.0",
+    "url": "https://github.com/devnnex/SISTEMA-POS-VIKINGOS-INDIRA.COM/releases/download/test-v1.0.0-r2/Vikingos-Indira-POS-Setup-1.0.0-r2-x64.exe",
+    "version": "test-v1.0.0-r2",
     "sizeMiB": 253.4,
-    "checksum": "e181fff8729b406a052effe8a82db2e9ebc3ce2c502765d7a80836bdb998b7f1",
+    "checksum": "9b3a3c3305d0619b48e4209de6c8bf182bc2afb8b896b116cb838c092f6a0f41",
     "prerelease": true
   },
   "supportEmail": "soporte@vikingosindira.com",
